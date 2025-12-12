@@ -142,7 +142,12 @@ shadow-orange-500/30
               >
                 Sign up
               </button>
-              
+              {/* ⭐ FOOTER CREDIT */}
+      <div className="absolute bottom-6 w-full text-center z-10">
+        <p className="text-slate-300 text-sm tracking-wide">
+          Made by <span className="text-teal-300 font-semibold">Harshren Ramesh Bachhav</span>
+        </p>
+      </div>
             </p>
 
           </div>

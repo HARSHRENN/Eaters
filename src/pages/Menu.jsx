@@ -32,7 +32,8 @@ export default function Menu() {
           (menuSnap) => {
             const items = menuSnap.docs
               .map(doc => ({ id: doc.id, ...doc.data() }))
-              .filter(item => item.available !== false) // ✅ hide unavailable
+              .filter(item => item.available !== false)
+
             setMenu(items)
             setLoading(false)
           }
@@ -46,7 +47,7 @@ export default function Menu() {
     }
   }, [slug])
 
-  /* ================= GROUP BY CATEGORY ================= */
+  /* ================= GROUP MENU ================= */
 
   const groupedMenu = menu.reduce((g, item) => {
     if (!g[item.category]) g[item.category] = []
@@ -75,16 +76,14 @@ export default function Menu() {
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-10">
 
-      {/* ✅ BACKGROUND IMAGE */}
+      {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: "url('/bg.jpg')" }}
       />
 
-      {/* ✅ DARK OVERLAY */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-      {/* ✅ CONTENT */}
       <div className="relative z-10 w-full max-w-xl">
         <div className="rounded-3xl bg-slate-900/75 backdrop-blur-xl border border-slate-700/50 shadow-2xl p-6 sm:p-8">
 
@@ -122,9 +121,18 @@ export default function Menu() {
                       <span className="text-white font-medium">
                         {item.name}
                       </span>
-                      <span className="text-green-400 font-semibold">
-                        ₹{item.price}
-                      </span>
+
+                      {/* Half / Full Price */}
+                      <div className="text-right text-green-400 font-semibold text-sm">
+                        {item.priceHalf ? (
+                          <p>Half: ₹{item.priceHalf}</p>
+                        ) : null}
+
+                        {item.priceFull ? (
+                          <p>Full: ₹{item.priceFull}</p>
+                        ) : null}
+                      </div>
+
                     </div>
                   ))}
                 </div>

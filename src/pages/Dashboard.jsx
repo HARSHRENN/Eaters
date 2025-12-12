@@ -34,16 +34,20 @@ export default function Dashboard() {
   const [restaurantName, setRestaurantName] = useState("")
   const [restaurantSlug, setRestaurantSlug] = useState("")
 
+  // ITEM FIELDS (updated)
   const [dishName, setDishName] = useState("")
-  const [price, setPrice] = useState("")
+  const [priceHalf, setPriceHalf] = useState("")
+  const [priceFull, setPriceFull] = useState("")
   const [categoryInput, setCategoryInput] = useState("")
 
   const [menuItems, setMenuItems] = useState([])
   const [orders, setOrders] = useState([])
 
+  // EDIT FIELDS (updated)
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState("")
-  const [editPrice, setEditPrice] = useState("")
+  const [editPriceHalf, setEditPriceHalf] = useState("")
+  const [editPriceFull, setEditPriceFull] = useState("")
 
   const [filter, setFilter] = useState("all")
   const [activeTab, setActiveTab] = useState("orders")
@@ -131,26 +135,28 @@ export default function Dashboard() {
 
   /* ================= MENU ACTIONS ================= */
   const addMenuItem = async (e) => {
-    e.preventDefault()
-    if (!dishName || !price || !categoryInput) return alert("Fill all fields")
+  e.preventDefault()
+  if (!dishName || !priceHalf || !priceFull || !categoryInput)
+    return alert("Fill all fields")
 
-    await addDoc(
-      collection(db, "restaurants", auth.currentUser.uid, "menu"),
-      {
-        name: dishName,
-        price: Number(price),
-        category: categoryInput,
-        available: true,
-        createdAt: new Date()
-      }
-    )
+  await addDoc(
+    collection(db, "restaurants", auth.currentUser.uid, "menu"),
+    {
+      name: dishName,
+      priceHalf: Number(priceHalf),
+      priceFull: Number(priceFull),
+      category: categoryInput,
+      available: true,
+      createdAt: new Date()
+    }
+  )
 
-    setDishName("")
-    setPrice("")
-    setCategoryInput("")
-    setShowAddItem(false)
-  }
-
+  setDishName("")
+  setPriceHalf("")
+  setPriceFull("")
+  setCategoryInput("")
+  setShowAddItem(false)
+}
   const toggleAvailability = async (item) => {
     await updateDoc(
       doc(db, "restaurants", auth.currentUser.uid, "menu", item.id),
@@ -163,7 +169,8 @@ export default function Dashboard() {
       doc(db, "restaurants", auth.currentUser.uid, "menu", id),
       {
         name: editName,
-        price: Number(editPrice)
+        priceHalf: Number(editPriceHalf),
+        priceFull: Number(editPriceFull)
       }
     )
     setEditingId(null)
@@ -353,7 +360,9 @@ export default function Dashboard() {
                     <div className="p-4 border-b border-zinc-800 space-y-1">
                       {Object.values(order.items).map((it, i) => (
                         <div key={i} className="flex justify-between text-sm">
-                          <span className="text-zinc-400">{it.qty}× {it.name}</span>
+                          <span className="text-zinc-400">
+                            {it.qty}× {it.name} ({it.type})
+                          </span>
                           <span>₹{it.price * it.qty}</span>
                         </div>
                       ))}
@@ -421,19 +430,30 @@ export default function Dashboard() {
                   onChange={(e) => setDishName(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm placeholder:text-zinc-600"
                 />
+                
                 <input
                   type="number"
-                  placeholder="Price"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm placeholder:text-zinc-600"
+                  placeholder="Half Price"
+                  value={priceHalf}
+                  onChange={(e) => setPriceHalf(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm"
                 />
+
+                <input
+                  type="number"
+                  placeholder="Full Price"
+                  value={priceFull}
+                  onChange={(e) => setPriceFull(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm"
+                />
+
                 <input
                   placeholder="Category"
                   value={categoryInput}
                   onChange={(e) => setCategoryInput(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm placeholder:text-zinc-600"
                 />
+
                 <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-medium transition">
                   Add Item
                 </button>
@@ -456,12 +476,21 @@ export default function Dashboard() {
                             onChange={(e) => setEditName(e.target.value)}
                             className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm"
                           />
+                          
                           <input
                             type="number"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
+                            value={editPriceHalf}
+                            onChange={(e) => setEditPriceHalf(e.target.value)}
                             className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm"
                           />
+
+                          <input
+                            type="number"
+                            value={editPriceFull}
+                            onChange={(e) => setEditPriceFull(e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 px-3 py-2 rounded text-sm"
+                          />
+
                           <div className="flex gap-2">
                             <button
                               onClick={() => saveEdit(item.id)}
@@ -490,7 +519,10 @@ export default function Dashboard() {
                                 {item.available ? "Available" : "Out"}
                               </span>
                             </div>
-                            <p className="text-emerald-400 font-semibold">₹{item.price}</p>
+
+                            <p className="text-emerald-400 font-semibold">
+                              Half ₹{item.priceHalf} • Full ₹{item.priceFull}
+                            </p>
                           </div>
 
                           <div className="p-3 flex gap-2">
@@ -504,7 +536,8 @@ export default function Dashboard() {
                               onClick={() => {
                                 setEditingId(item.id)
                                 setEditName(item.name)
-                                setEditPrice(item.price)
+                                setEditPriceHalf(item.priceHalf)
+                                setEditPriceFull(item.priceFull)
                               }}
                               className="px-4 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 py-2 rounded text-xs transition"
                             >

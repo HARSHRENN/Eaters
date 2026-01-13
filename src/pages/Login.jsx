@@ -1,158 +1,149 @@
 import { useState } from "react"
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth"
+import { auth } from "../Firebase"
 import { useNavigate } from "react-router-dom"
-import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth"
-import { auth, googleProvider } from "../Firebase"
+import { motion } from "framer-motion"
+import { Lock, Mail, ChefHat, Chrome, ArrowRight } from "lucide-react"
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState("")
-
   const navigate = useNavigate()
 
-  // ✅ Email + Password Login
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError("")
-
     try {
       await signInWithEmailAndPassword(auth, email, password)
       navigate("/dashboard")
-    } catch (err) {
-      setError("Invalid email or password")
+    } catch (error) {
+      alert("Login failed: " + error.message)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
-  // ✅ Google Login
   const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider()
     try {
-      await signInWithPopup(auth, googleProvider)
+      await signInWithPopup(auth, provider)
       navigate("/dashboard")
-    } catch (err) {
-      setError("Google login failed")
+    } catch (error) {
+      alert("Google Login failed: " + error.message)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-
-      {/* ✅ BACKGROUND IMAGE */}
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-linear-to-br from-gray-50 via-gray-100 to-gray-200 px-4 sm:px-6 py-8 sm:py-0">
+      {/* Background Image */}
       <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: "url('/bg.jpg')"   // ✅ put bg.jpg inside /public
-        }}
-      ></div>
+        className="absolute inset-0 bg-cover bg-center blur-[2px] scale-105"
+        style={{ backgroundImage: "url('/bg2.jpg')" }}
+      />
 
-      {/* ✅ DARK OVERLAY */}
-      <div className="absolute inset-0 backdrop-blur-sm"></div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative z-10 w-full max-w-md"
+      >
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl sm:rounded-4xl p-8 sm:p-10 border border-gray-200 shadow-2xl shadow-gray-900/10 text-left">
 
-      {/* ✅ LOGIN CARD */}
-      <div className="relative z-10 w-full max-w-md">
-        <div className="rounded-3xl bg-slate-900/70 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
-
-          <div className="p-8 sm:p-10">
-
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white">
-                👋 Welcome Back 
-              </h1>
-              <p className="text-slate-200 text-sm mt-1">
-                Sign in to continue
-              </p>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Email */}
-            <input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full mb-4 px-4 py-3 rounded-xl bg-black/40 text-white
-              border border-slate-700/50 focus:ring-2 focus:ring-teal-500/30 outline-none"
-            />
-
-            {/* Password */}
-            <div className="relative mb-4">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-black/40 text-white
-                border border-slate-700/50 focus:ring-2 focus:ring-teal-500/30 outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-
-            {/* Login Button */}
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              className="w-full py-3 rounded-xl font-semibold text-white
-              bg-gradient-to-r from-orange-500 to-red-500
-shadow-orange-500/30
-              hover:opacity-90 active:scale-[0.98]
-              transition shadow-lg shadow-teal-500/30"
+          {/* Logo & Header */}
+          <div className="text-center mb-10">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", damping: 12, delay: 0.1 }}
+              className="inline-flex items-center justify-center p-4 bg-linear-to-br from-orange-500 to-red-500 rounded-2xl sm:rounded-3xl shadow-xl shadow-orange-500/20 mb-6"
             >
-              {loading ? "Signing in..." : "LOGIN"}
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center my-6 gap-4">
-              <div className="flex-1 h-px bg-slate-600/40"></div>
-              <span className="text-slate-400 text-xs uppercase">or</span>
-              <div className="flex-1 h-px bg-slate-600/40"></div>
-            </div>
-
-            {/* Google Login */}
-            <button
-              onClick={handleGoogleLogin}
-              className="w-full py-3 rounded-xl bg-white text-black font-semibold
-              hover:bg-gray-100 transition shadow"
-            >
-              Continue with Google
-            </button>
-
-            {/* Signup */}
-            <p className="text-center text-slate-400 mt-6 text-sm">
-              Don’t have an account?{" "}
-              <button
-                onClick={() => navigate("/signup")}
-                className="text-teal-400 hover:text-teal-300 font-medium"
-              >
-                Sign up
-              </button>
-              {/* ⭐ FOOTER CREDIT */}
-      <div className="absolute bottom-6 w-full text-center z-10">
-        <p className="text-slate-300 text-sm tracking-wide">
-          Made by <span className="text-teal-300 font-semibold">Harshren Ramesh Bachhav</span>
-        </p>
-      </div>
-            </p>
-
+              <ChefHat size={32} className="text-white" />
+            </motion.div>
+            <h1 className="text-4xl sm:text-5xl font-black text-gray-800 tracking-tight leading-none mb-3 uppercase">EATERS</h1>
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Kitchen Access Login ✨</p>
           </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] ml-4">Mail Address</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors pointer-events-none" size={20} />
+                <input
+                  type="email"
+                  placeholder="chef@eaters.com"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-2xl pl-12 pr-4 py-4 text-base text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all placeholder:text-gray-400"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] ml-4">Pass Key</label>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors pointer-events-none" size={20} />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-2xl pl-12 pr-4 py-4 text-base text-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all placeholder:text-gray-400"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              disabled={loading}
+              className="w-full min-h-[52px] bg-linear-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/30 text-base group"
+            >
+              {loading ? (
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>Access Kitchen</span>
+                  <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </motion.button>
+          </form>
+
+          <div className="relative my-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest"><span className=" text-gray-500">Quick Access</span></div>
+          </div>
+
+          <motion.button
+            whileHover={{ scale: 1.01, backgroundColor: "rgba(0,0,0,0.03)" }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleGoogleLogin}
+            className="w-full min-h-[52px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-black border border-gray-300 rounded-2xl flex items-center justify-center gap-3 transition-all text-sm uppercase tracking-widest"
+          >
+            <Chrome size={20} className="text-gray-600" />
+            Sign in with Google
+          </motion.button>
+
+          <p className="mt-10 text-center text-gray-600 text-sm font-medium">
+            New restaurant?{" "}
+            <button
+              onClick={() => navigate("/signup")}
+              className="text-orange-600 hover:text-orange-700 font-black underline decoration-orange-500/30 underline-offset-4 decoration-2 transition-all cursor-pointer"
+            >
+              Start Service
+            </button>
+          </p>
         </div>
-      </div>
+
+        {/* Footer info */}
+        <p className="mt-8 text-center text-gray-600 text-[10px] font-black uppercase tracking-[0.3em]">
+          EATERS -Harshren Bachhav
+        </p>
+      </motion.div>
     </div>
   )
 }

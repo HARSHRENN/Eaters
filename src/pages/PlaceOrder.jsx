@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { auth, db } from "../Firebase"
-import { useNavigate } from "react-router-dom"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   ArrowLeft,
@@ -42,6 +42,8 @@ const getNextOrderNumber = async (uid) => {
 
 export default function PlaceOrder() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const editOrderId = searchParams.get("orderId")
 
   const [loading, setLoading] = useState(true)
   const [menuItems, setMenuItems] = useState([])
@@ -53,16 +55,36 @@ export default function PlaceOrder() {
   const [tableNo, setTableNo] = useState("")
   const [saving, setSaving] = useState(false)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [existingOrder, setExistingOrder] = useState(null)
 
   useEffect(() => {
     const uid = auth.currentUser?.uid
     if (!uid) return navigate("/login")
 
-    return onSnapshot(collection(db, "restaurants", uid, "menu"), (snapshot) => {
+    // Fetch Menu
+    const menuUnsub = onSnapshot(collection(db, "restaurants", uid, "menu"), (snapshot) => {
       setMenuItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
     })
-  }, [navigate])
+
+    // Fetch Existing Order if ID present
+    let orderUnsub = () => { }
+    if (editOrderId) {
+      orderUnsub = onSnapshot(doc(db, "restaurants", uid, "orders", editOrderId), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          setExistingOrder({ id: docSnap.id, ...data })
+          setTableNo(data.tableNo || "")
+          setOrderType(data.type || "dine-in")
+          // Pre-populate cart with existing items so user can see and edit them
+          setCart(data.items || {})
+        }
+      })
+    }
+
+    return () => { menuUnsub(); orderUnsub() }
+  }, [navigate, editOrderId])
+
 
   const addToCart = (item, type) => {
     const key = `${item.id}_${type}`
@@ -99,25 +121,43 @@ export default function PlaceOrder() {
     setSaving(true)
     try {
       const uid = auth.currentUser.uid
-      const orderNumber = await getNextOrderNumber(uid)
-      await addDoc(collection(db, "restaurants", uid, "orders"), {
-        orderNumber,
-        items: cart,
-        total: cartTotal,
-        payment: paymentStatus,
-        status: "pending",
-        type: orderType,
-        tableNo,
-        createdAt: new Date()
-      })
+
+      if (editOrderId && existingOrder) {
+        // UPDATE EXISTING ORDER
+        const orderRef = doc(db, "restaurants", uid, "orders", editOrderId)
+
+        await updateDoc(orderRef, {
+          items: cart,
+          total: cartTotal
+        })
+
+        alert(`Order Updated`)
+      } else {
+        // NEW ORDER
+        const orderNumber = await getNextOrderNumber(uid)
+        await addDoc(collection(db, "restaurants", uid, "orders"), {
+          orderNumber,
+          items: cart,
+          total: cartTotal,
+          payment: paymentStatus,
+          status: "pending",
+          type: orderType,
+          tableNo,
+          createdAt: new Date()
+        })
+        alert(`Order #${orderNumber} Synchronized`)
+      }
+
       setCart({}); setTableNo(""); setShowCheckout(false)
-      alert(`Order #${orderNumber} Synchronized`)
+      if (editOrderId) navigate("/dashboard") // Go back to dashboard after edit
+
     } catch (e) {
       console.error(e)
     } finally {
       setSaving(false)
     }
   }
+
 
   const categories = [...new Set(menuItems.map(i => i.category))]
   const filteredItems = menuItems.filter(i =>
@@ -132,6 +172,7 @@ export default function PlaceOrder() {
     </div>
   )
 
+  // Update header text to show we are editing
   return (
     <div className="min-h-screen bg-zinc-950 text-white selection:bg-orange-500/30 pb-40">
       <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-white/5">
@@ -141,7 +182,9 @@ export default function PlaceOrder() {
             <div className="h-8 w-px bg-white/5 mx-1 hidden sm:block" />
             <div>
               <h1 className="text-sm font-black uppercase tracking-widest leading-none mb-1">Food Ordering</h1>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none uppercase">Place Order</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none uppercase">
+                {editOrderId ? `Add to Order #${existingOrder?.orderNumber || '...'}` : "Place Order"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -224,20 +267,20 @@ export default function PlaceOrder() {
       <AnimatePresence>
         {cartCount > 0 && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-0 left-0 right-0 p-4 sm:p-8 flex justify-center z-50 pointer-events-none">
-            <div className="w-full max-w-2xl glass-dark rounded-[2.5rem] p-1.5 border-white/5 shadow-2xl pointer-events-auto overflow-hidden">
-              <div className="bg-zinc-900/40 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="w-full max-w-2xl bg-zinc-900 rounded-[2.5rem] p-2 border border-zinc-800 shadow-2xl pointer-events-auto overflow-hidden">
+              <div className="rounded-[2rem] p-3 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4 w-full sm:w-auto text-left">
                   <div className="bg-linear-to-br from-orange-500 to-red-600 w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-orange-500/20 relative">
                     <ShoppingCart size={20} />
                     <div className="absolute -top-1 -right-1 bg-white text-black text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-900">{cartCount}</div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] leading-none mb-1">Transmission Value</p>
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] leading-none mb-1">Total ({cartCount} Items)</p>
                     <p className="text-2xl font-black text-white font-mono leading-none tracking-tighter">₹{cartTotal}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <input placeholder="TABLE #" value={tableNo} onChange={e => setTableNo(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[11px] font-black uppercase tracking-widest w-full sm:w-24 focus:outline-none focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
+                  <input placeholder="TABLE #" value={tableNo} onChange={e => setTableNo(e.target.value)} className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[11px] font-black uppercase tracking-widest flex-1 sm:w-24 focus:outline-none focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:text-zinc-700" />
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

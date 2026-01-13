@@ -63,7 +63,7 @@ const QuickAction = ({ icon: Icon, label, onClick, color }) => (
   </motion.button>
 )
 
-const OrderCard = ({ order, onUpdate, onDelete, onPrint }) => (
+const OrderCard = ({ order, onUpdate, onDelete, onPrint, onAddItems }) => (
   <motion.div
     layout
     initial={{ opacity: 0, scale: 0.9 }}
@@ -123,8 +123,9 @@ const OrderCard = ({ order, onUpdate, onDelete, onPrint }) => (
       {order.status === "ready" && (
         <button onClick={() => onUpdate(order.id, "completed")} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all">Done</button>
       )}
-      <button onClick={() => onPrint(order.id)} className="px-5 bg-zinc-900/50 hover:bg-white/10 text-zinc-600 hover:text-white rounded-xl transition-all border border-white/5" title="Print Bill"><Printer size={16} /></button>
-      <button onClick={() => onDelete(order.id)} className="px-5 bg-zinc-900/50 hover:bg-red-500/10 text-zinc-600 hover:text-red-500 rounded-xl transition-all border border-white/5"><Trash2 size={16} /></button>
+      <button onClick={() => onPrint(order.id)} className="px-4 bg-zinc-900/50 hover:bg-white/10 text-zinc-600 hover:text-white rounded-xl transition-all border border-white/5" title="Print Bill"><Printer size={16} /></button>
+      <button onClick={() => onAddItems && onAddItems(order.id)} className="px-4 bg-zinc-900/50 hover:bg-emerald-500/10 text-zinc-600 hover:text-emerald-500 rounded-xl transition-all border border-white/5" title="Add Items"><PlusCircle size={16} /></button>
+      <button onClick={() => onDelete(order.id)} className="px-4 bg-zinc-900/50 hover:bg-red-500/10 text-zinc-600 hover:text-red-500 rounded-xl transition-all border border-white/5"><Trash2 size={16} /></button>
     </div>
   </motion.div>
 )
@@ -387,7 +388,7 @@ export default function Dashboard() {
                     <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em]">No active transmissions detected</p>
                   </motion.div>
                 ) : (
-                  filteredOrders.map(order => <OrderCard key={order.id} order={order} onUpdate={handleUpdateStatus} onDelete={handleDeleteOrder} onPrint={(id) => navigate(`/bill/${id}`)} />)
+                  filteredOrders.map(order => <OrderCard key={order.id} order={order} onUpdate={handleUpdateStatus} onDelete={handleDeleteOrder} onPrint={(id) => navigate(`/bill/${id}`)} onAddItems={(id) => navigate(`/place-order?orderId=${id}`)} />)
                 )}
               </AnimatePresence>
             </motion.div>

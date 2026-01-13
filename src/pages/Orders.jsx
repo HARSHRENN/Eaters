@@ -52,6 +52,11 @@ export default function Orders() {
   const [revenueEndDate, setRevenueEndDate] = useState("")
   const [customRevenue, setCustomRevenue] = useState(null)
 
+  // Time range filter states
+  const [startDateTime, setStartDateTime] = useState("")
+  const [endDateTime, setEndDateTime] = useState("")
+  const [useTimeFilter, setUseTimeFilter] = useState(false)
+
   useEffect(() => {
     const uid = auth.currentUser?.uid
     if (!uid) return navigate("/login")
@@ -130,8 +135,65 @@ export default function Orders() {
       const matchesTotal = order.total?.toString().includes(term)
       if (!matchesNumber && !matchesTotal) return false
     }
+
+    // Apply time range filter if active
+    if (useTimeFilter && startDateTime && endDateTime) {
+      const orderTime = order.createdAt ? new Date(order.createdAt) : null
+      if (!orderTime) return false
+
+      const start = new Date(startDateTime)
+      const end = new Date(endDateTime)
+
+      if (orderTime < start || orderTime > end) return false
+    }
+
     return true
   })
+
+  // Group orders by time intervals (for 24/7 operations)
+  const groupOrdersByTime = (orders) => {
+    const now = new Date()
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+    const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000)
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000)
+    const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000)
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+    const groups = {
+      lastHour: [],
+      lastThreeHours: [],
+      lastSixHours: [],
+      lastTwelveHours: [],
+      lastTwentyFourHours: [],
+      older: []
+    }
+
+    orders.forEach(order => {
+      const orderDate = order.createdAt ? new Date(order.createdAt) : null
+      if (!orderDate) {
+        groups.older.push(order)
+        return
+      }
+
+      if (orderDate >= oneHourAgo) {
+        groups.lastHour.push(order)
+      } else if (orderDate >= threeHoursAgo) {
+        groups.lastThreeHours.push(order)
+      } else if (orderDate >= sixHoursAgo) {
+        groups.lastSixHours.push(order)
+      } else if (orderDate >= twelveHoursAgo) {
+        groups.lastTwelveHours.push(order)
+      } else if (orderDate >= twentyFourHoursAgo) {
+        groups.lastTwentyFourHours.push(order)
+      } else {
+        groups.older.push(order)
+      }
+    })
+
+    return groups
+  }
+
+  const groupedOrders = groupOrdersByTime(filteredOrders)
 
   const exportToCSV = () => {
     const headers = ["Order #", "Date", "Total", "Payment", "Status", "Items"]
@@ -241,6 +303,65 @@ export default function Orders() {
           </AnimatePresence>
         </div>
 
+        {/* Time Range Filter */}
+        <div className="mb-10">
+          <div className="glass-dark p-6 rounded-3xl border-white/5 space-y-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Clock className="text-blue-500" size={18} />
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-300">Time Range Filter</h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">Start Time</label>
+                <input
+                  type="datetime-local"
+                  value={startDateTime}
+                  onChange={(e) => setStartDateTime(e.target.value)}
+                  className="input-field py-2! text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-2">End Time</label>
+                <input
+                  type="datetime-local"
+                  value={endDateTime}
+                  onChange={(e) => setEndDateTime(e.target.value)}
+                  className="input-field py-2! text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setUseTimeFilter(true)}
+                disabled={!startDateTime || !endDateTime}
+                className="btn-primary flex-1 py-3! text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Apply Filter
+              </button>
+              <button
+                onClick={() => {
+                  setUseTimeFilter(false)
+                  setStartDateTime("")
+                  setEndDateTime("")
+                }}
+                className="glass hover:bg-white/10 flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-all"
+              >
+                Clear Filter
+              </button>
+            </div>
+
+            {useTimeFilter && startDateTime && endDateTime && (
+              <div className="pt-4 border-t border-white/5">
+                <p className="text-[9px] font-black text-emerald-500 uppercase tracking-widest text-center">
+                  ✓ Showing orders from {new Date(startDateTime).toLocaleString("en-IN")} to {new Date(endDateTime).toLocaleString("en-IN")}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Global Filter Station */}
         <div className="flex flex-col gap-4 mb-8">
           <div className="relative">
@@ -271,75 +392,96 @@ export default function Orders() {
           </div>
         </div>
 
-        {/* Transmission History */}
-        <div className="space-y-4">
-          <AnimatePresence>
-            {filteredOrders.map((order, idx) => (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                key={order.id}
-                className="glass-dark rounded-3xl border-white/5 overflow-hidden group"
-              >
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-orange-500/10 p-2 rounded-xl"><Package size={16} className="text-orange-500" /></div>
-                      <div>
-                        <h4 className="text-sm font-black uppercase tracking-widest">Order Node-#{order.orderNumber}</h4>
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{order.createdAt?.toLocaleDateString("en-IN")} • {order.createdAt?.toLocaleTimeString("en-IN")}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-white tracking-tighter">₹{order.total}</p>
-                    </div>
-                  </div>
-
-                  <details className="mb-6">
-                    <summary className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] cursor-pointer hover:text-orange-500 transition-colors list-none flex items-center gap-2">
-                      <Filter size={10} /> View Protocol Details
-                    </summary>
-                    <div className="mt-4 space-y-2 bg-black/20 p-4 rounded-2xl border border-white/5">
-                      {Object.values(order.items || {}).map((it, i) => (
-                        <div key={i} className="flex justify-between items-center text-xs">
-                          <span className="text-zinc-400 font-bold uppercase tracking-widest">{it.name} <span className="text-zinc-600">x{it.qty}</span></span>
-                          <span className="font-mono text-zinc-200">₹{it.price * it.qty}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1 sm:ml-2">Payment Integrity</p>
-                      <select
-                        value={order.payment}
-                        onChange={(e) => updateOrder(order.id, { payment: e.target.value })}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 sm:py-2.5 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-orange-500 outline-none transition-all appearance-none"
-                      >
-                        <option value="pending">In-Transfer (Pending)</option>
-                        <option value="completed">Confirmed (Cleared)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1 sm:ml-2">Workflow Phase</p>
-                      <select
-                        value={order.status}
-                        onChange={(e) => updateOrder(order.id, { status: e.target.value })}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 sm:py-2.5 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-orange-500 outline-none transition-all appearance-none"
-                      >
-                        <option value="pending">Awaiting Sync</option>
-                        <option value="preparing">In-Synthesis</option>
-                        <option value="ready">Ready for Link</option>
-                        <option value="completed">Archived</option>
-                      </select>
-                    </div>
-                  </div>
+        {/* Transmission History - Grouped by Time */}
+        <div className="space-y-8">
+          {[
+            { key: 'lastHour', label: 'Last Hour', orders: groupedOrders.lastHour },
+            { key: 'lastThreeHours', label: 'Last 3 Hours', orders: groupedOrders.lastThreeHours },
+            { key: 'lastSixHours', label: 'Last 6 Hours', orders: groupedOrders.lastSixHours },
+            { key: 'lastTwelveHours', label: 'Last 12 Hours', orders: groupedOrders.lastTwelveHours },
+            { key: 'lastTwentyFourHours', label: 'Last 24 Hours', orders: groupedOrders.lastTwentyFourHours },
+            { key: 'older', label: 'Older', orders: groupedOrders.older }
+          ].map(section => (
+            section.orders.length > 0 && (
+              <div key={section.key} className="space-y-4">
+                {/* Date Section Header */}
+                <div className="flex items-center gap-4">
+                  <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.4em] whitespace-nowrap">{section.label}</h3>
+                  <div className="h-px bg-white/5 w-full" />
                 </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+
+                {/* Orders in this section */}
+                <AnimatePresence>
+                  {section.orders.map((order, idx) => (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      key={order.id}
+                      className="glass-dark rounded-3xl border-white/5 overflow-hidden group"
+                    >
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-orange-500/10 p-2 rounded-xl"><Package size={16} className="text-orange-500" /></div>
+                            <div>
+                              <h4 className="text-sm font-black uppercase tracking-widest">Order Node-#{order.orderNumber}</h4>
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{order.createdAt?.toLocaleDateString("en-IN")} • {order.createdAt?.toLocaleTimeString("en-IN")}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-black text-white tracking-tighter">₹{order.total}</p>
+                          </div>
+                        </div>
+
+                        <details className="mb-6">
+                          <summary className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] cursor-pointer hover:text-orange-500 transition-colors list-none flex items-center gap-2">
+                            <Filter size={10} /> View Protocol Details
+                          </summary>
+                          <div className="mt-4 space-y-2 bg-black/20 p-4 rounded-2xl border border-white/5">
+                            {Object.values(order.items || {}).map((it, i) => (
+                              <div key={i} className="flex justify-between items-center text-xs">
+                                <span className="text-zinc-400 font-bold uppercase tracking-widest">{it.name} <span className="text-zinc-600">x{it.qty}</span></span>
+                                <span className="font-mono text-zinc-200">₹{it.price * it.qty}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1 sm:ml-2">Payment Integrity</p>
+                            <select
+                              value={order.payment}
+                              onChange={(e) => updateOrder(order.id, { payment: e.target.value })}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 sm:py-2.5 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-orange-500 outline-none transition-all appearance-none"
+                            >
+                              <option value="pending">In-Transfer (Pending)</option>
+                              <option value="completed">Confirmed (Cleared)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest ml-1 sm:ml-2">Workflow Phase</p>
+                            <select
+                              value={order.status}
+                              onChange={(e) => updateOrder(order.id, { status: e.target.value })}
+                              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 sm:py-2.5 text-[10px] font-black uppercase tracking-widest focus:ring-1 focus:ring-orange-500 outline-none transition-all appearance-none"
+                            >
+                              <option value="pending">Awaiting Sync</option>
+                              <option value="preparing">In-Synthesis</option>
+                              <option value="ready">Ready for Link</option>
+                              <option value="completed">Archived</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )
+          ))}
+
           {filteredOrders.length === 0 && (
             <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
               <p className="text-zinc-500 font-black uppercase tracking-[0.3em] text-[10px]">No Active Transmissions Found</p>
